@@ -433,6 +433,12 @@ def written_quiz_mode():
                 if total > 0:
                     st.sidebar.text(f"{genre}: {accuracy}% ({correct}/{total})")
 
+        # 問題文を最初に表示するコンテナを作成
+        question_container = st.empty()
+        
+        # 回答エリアのコンテナを作成
+        answer_container = st.container()
+
         if st.button("新しい問題を生成", key="written_generate"):
             st.session_state.has_answered = False
             quiz_text, genre = generate_quiz_with_retry(quiz_type="written_answer")
@@ -453,79 +459,79 @@ def written_quiz_mode():
                 except Exception as e:
                     st.error(f"問題の解析中にエラーが発生しました: {str(e)}")
 
+        # 問題文の表示
         if hasattr(st.session_state, 'written_question'):
-            st.write(st.session_state.written_question)
+            question_container.write(st.session_state.written_question)
             
-            if st.session_state.has_answered:
-                st.text_area(
-                    "あなたの回答：",
-                    value=st.session_state.user_written_answer,
-                    disabled=True
-                )
-                
-                # 回答の評価（文字列として比較）
-                user_answer_processed = str(st.session_state.user_written_answer).strip().lower()
-                correct_answer_processed = str(st.session_state.written_answer).strip().lower()
-                is_correct = user_answer_processed == correct_answer_processed
-
-                if is_correct:
-                    st.success("🎉 正解です！")
-                else:
-                    st.error("不正解です。以下の模範解答を参考に、理解を深めましょう。")
-
-                # 回答と模範解答を横に並べて表示
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write("💭 あなたの回答:")
-                    st.info(st.session_state.user_written_answer)
-                with col2:
-                    st.write("📚 模範解答:")
-                    answer_parts = st.session_state.written_answer.split('・')
-                    for part in answer_parts[1:]:
-                        if part.strip():
-                            # テキストサイズを統一するためにst.writeを使用
-                            st.write(f"• {part.strip()}")
-                
-                st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
-            else:
-                user_answer = st.text_area("答えを入力してください：")
-                
-                if st.button("回答する"):
-                    st.session_state.has_answered = True
-                    st.session_state.user_written_answer = user_answer
-                    
-                    # 回答の評価（文字列として比較）
-                    user_answer_processed = str(user_answer).strip().lower()
-                    correct_answer_processed = str(st.session_state.written_answer).strip().lower()
-                    is_correct = user_answer_processed == correct_answer_processed
-                    
-                    save_written_answer(
-                        st.session_state.written_question,
-                        user_answer,
-                        st.session_state.written_answer,
-                        is_correct,  # 正誤判定の結果を保存
-                        st.session_state.written_genre
+            with answer_container:
+                if st.session_state.has_answered:
+                    st.text_area(
+                        "あなたの回答：",
+                        value=st.session_state.user_written_answer,
+                        disabled=True
                     )
                     
+                    # 回答の評価（文字列として比較）
+                    user_answer_processed = str(st.session_state.user_written_answer).strip().lower()
+                    correct_answer_processed = str(st.session_state.written_answer).strip().lower()
+                    is_correct = user_answer_processed == correct_answer_processed
+
                     if is_correct:
                         st.success("🎉 正解です！")
                     else:
-                        st.error("📝 不正解です。以下の模範解答を参考に、理解を深めましょう。")
+                        st.error("不正解です。以下の模範解答を参考に、理解を深めましょう。")
 
                     # 回答と模範解答を横に並べて表示
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write("💭 あなたの回答:")
-                        st.info(user_answer)
+                        st.info(st.session_state.user_written_answer)
                     with col2:
                         st.write("📚 模範解答:")
                         answer_parts = st.session_state.written_answer.split('・')
                         for part in answer_parts[1:]:
                             if part.strip():
-                                # テキストサイズを統一するためにst.writeを使用
                                 st.write(f"• {part.strip()}")
                     
                     st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
+                else:
+                    user_answer = st.text_area("答えを入力してください：")
+                    
+                    if st.button("回答する"):
+                        st.session_state.has_answered = True
+                        st.session_state.user_written_answer = user_answer
+                        
+                        # 回答の評価（文字列として比較）
+                        user_answer_processed = str(user_answer).strip().lower()
+                        correct_answer_processed = str(st.session_state.written_answer).strip().lower()
+                        is_correct = user_answer_processed == correct_answer_processed
+                        
+                        save_written_answer(
+                            st.session_state.written_question,
+                            user_answer,
+                            st.session_state.written_answer,
+                            is_correct,  # 正誤判定の結果を保存
+                            st.session_state.written_genre
+                        )
+                        
+                        if is_correct:
+                            st.success("🎉 正解です！")
+                        else:
+                            st.error("不正解です。以下の模範解答を参考に、理解を深めましょう。")
+
+                        # 回答と模範解答を横に並べて表示
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write("💭 あなたの回答:")
+                            st.info(user_answer)
+                        with col2:
+                            st.write("📚 模範解答:")
+                            answer_parts = st.session_state.written_answer.split('・')
+                            for part in answer_parts[1:]:
+                                if part.strip():
+                                    st.write(f"• {part.strip()}")
+                        
+                        st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
     except Exception as e:
         st.error(f"予期せぬエラーが発生しました: {str(e)}")
         st.info("アプリケーションを再読み込みしてください。")
