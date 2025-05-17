@@ -524,7 +524,7 @@ def written_quiz_mode():
                             st.session_state.written_answer = answer_text
                             st.session_state.written_genre = genre
                             # 問題生成後に画面をリフレッシュ
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error("問題の形式が正しくありません。もう一度生成してください。")
                 except Exception as e:
