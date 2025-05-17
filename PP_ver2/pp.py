@@ -240,6 +240,7 @@ def generate_quiz_with_retry(quiz_type="multiple_choice"):
             質問：（歴史的考察を促す問い）
             
             模範解答：
+            以下の項目を端的に500字以内で記述してください。
             ・歴史的事実の説明：
             （具体的な説明を記述）
             
