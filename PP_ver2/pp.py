@@ -456,15 +456,7 @@ def written_quiz_mode():
                 
                 if st.session_state.is_correct:
                     st.success("正解です！")
-                    # 模範解答を箇条書きで表示
-                    st.write("📝 模範解答:")
-                    answer_parts = st.session_state.correct_answer.split('・')
-                    answer_formatted = "<div style='background-color: #D4EDDA; padding: 1rem; border-radius: 0.5rem; color: #155724; border: 1px solid #C3E6CB;'>\n"
-                    for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                        if part.strip():  # 空の部分をスキップ
-                            answer_formatted += f"• {part.strip()}<br>\n"
-                    answer_formatted += "</div>"
-                    st.markdown(answer_formatted, unsafe_allow_html=True)
+                    st.write("模範解答:", st.session_state.correct_answer)
                 else:
                     st.error("不正解です。")
                     # 不正解の場合、より詳しいフィードバックを表示
@@ -477,13 +469,7 @@ def written_quiz_mode():
                         st.warning(st.session_state.user_answer)
                     with col2:
                         st.write("模範解答:")
-                        answer_parts = st.session_state.correct_answer.split('・')
-                        answer_formatted = "<div style='background-color: #D4EDDA; padding: 1rem; border-radius: 0.5rem; color: #155724; border: 1px solid #C3E6CB;'>\n"
-                        for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                            if part.strip():  # 空の部分をスキップ
-                                answer_formatted += f"• {part.strip()}<br>\n"
-                        answer_formatted += "</div>"
-                        st.markdown(answer_formatted, unsafe_allow_html=True)
+                        st.success(st.session_state.correct_answer)
                 
                 # 次の問題へのガイド
                 st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
@@ -538,15 +524,7 @@ def written_quiz_mode():
                         
                         if is_correct:
                             st.success("正解です！")
-                            # 模範解答を箇条書きで表示
-                            st.write("📝 模範解答:")
-                            answer_parts = st.session_state.correct_answer.split('・')
-                            answer_formatted = "<div style='background-color: #D4EDDA; padding: 1rem; border-radius: 0.5rem; color: #155724; border: 1px solid #C3E6CB;'>\n"
-                            for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                                if part.strip():  # 空の部分をスキップ
-                                    answer_formatted += f"• {part.strip()}<br>\n"
-                            answer_formatted += "</div>"
-                            st.markdown(answer_formatted, unsafe_allow_html=True)
+                            st.write("模範解答:", st.session_state.correct_answer)
                         else:
                             st.error("不正解です。")
                             # 不正解の場合、より詳しいフィードバックを表示
@@ -559,13 +537,7 @@ def written_quiz_mode():
                                 st.warning(user_answer)
                             with col2:
                                 st.write("模範解答:")
-                                answer_parts = st.session_state.correct_answer.split('・')
-                                answer_formatted = "<div style='background-color: #D4EDDA; padding: 1rem; border-radius: 0.5rem; color: #155724; border: 1px solid #C3E6CB;'>\n"
-                                for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                                    if part.strip():  # 空の部分をスキップ
-                                        answer_formatted += f"• {part.strip()}<br>\n"
-                                answer_formatted += "</div>"
-                                st.markdown(answer_formatted, unsafe_allow_html=True)
+                                st.success(st.session_state.correct_answer)
                         
                         # 次の問題へのガイド
                         st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
@@ -574,15 +546,7 @@ def written_quiz_mode():
                         st.error(f"データベース操作中にエラーが発生しました: {str(e)}")
                         if is_correct:
                             st.success("正解です！")
-                            # 模範解答を箇条書きで表示
-                            st.write("📝 模範解答:")
-                            answer_parts = st.session_state.correct_answer.split('・')
-                            answer_formatted = "<div style='background-color: #D4EDDA; padding: 1rem; border-radius: 0.5rem; color: #155724; border: 1px solid #C3E6CB;'>\n"
-                            for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                                if part.strip():  # 空の部分をスキップ
-                                    answer_formatted += f"• {part.strip()}<br>\n"
-                            answer_formatted += "</div>"
-                            st.markdown(answer_formatted, unsafe_allow_html=True)
+                            st.write("模範解答:", st.session_state.correct_answer)
                         else:
                             st.error("不正解です。")
                             # エラー時でも正解は表示
