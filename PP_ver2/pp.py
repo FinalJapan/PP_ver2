@@ -523,10 +523,10 @@ def written_quiz_mode():
                         # 回答と模範解答を横に並べて表示
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.write("💭 あなたの回答:")
+                            st.write("あなたの回答:")
                             st.info(user_answer)
                         with col2:
-                            st.write("📚 模範解答:")
+                            st.write("模範解答:")
                             # 模範解答を行ごとに分割して表示
                             answer_lines = st.session_state.written_answer.split('\n')
                             for line in answer_lines:
