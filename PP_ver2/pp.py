@@ -9,60 +9,11 @@ from pathlib import Path
 from datetime import datetime
 import random
 
-# ページ設定（最初に配置）
+# ページ設定
 st.set_page_config(
     page_title="PP - AIパーソナル学習",
     page_icon="📓",
-    layout="wide"  # 常にワイドレイアウトを使用
 )
-
-# セッション状態の初期化
-if 'current_mode' not in st.session_state:
-    st.session_state.current_mode = "4択クイズ"  # デフォルトモード
-
-# その他のセッション状態の初期化
-if 'api_key_set' not in st.session_state:
-    st.session_state.api_key_set = False
-if 'current_question' not in st.session_state:
-    st.session_state.current_question = None
-if 'correct_answer' not in st.session_state:
-    st.session_state.correct_answer = None
-if 'has_answered' not in st.session_state:
-    st.session_state.has_answered = False
-if 'last_quiz_content' not in st.session_state:
-    st.session_state.last_quiz_content = None
-if 'last_quiz_genre' not in st.session_state:
-    st.session_state.last_quiz_genre = None
-
-# メインページのタイトル
-st.title("PP - AIパーソナル学習")
-
-# サイドバーでモード選択
-st.sidebar.title("学習モード選択")
-mode = st.sidebar.radio(
-    "モードを選択してください：",
-    ["4択クイズ", "記述式クイズ", "学習ログ"]
-)
-
-# モードが変更された場合、セッション状態を更新
-if st.session_state.current_mode != mode:
-    st.session_state.current_mode = mode
-
-# レイアウトの調整（4択クイズと学習ログの場合は中央寄せ）
-if mode != "記述式クイズ":
-    st.markdown(
-        """
-        <style>
-        .block-container {
-            max-width: 720px;
-            padding-top: 2rem;
-            padding-bottom: 2rem;
-            margin: 0 auto;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
 
 # データベースファイルのパスを設定
 def get_db_path():
@@ -180,6 +131,20 @@ def select_genre():
     else:  # それ以外の場合はランダムに選択
         return random.choice([genre for genre, _, _, _ in stats])
 
+# セッション状態の初期化
+if 'api_key_set' not in st.session_state:
+    st.session_state.api_key_set = False
+if 'current_question' not in st.session_state:
+    st.session_state.current_question = None
+if 'correct_answer' not in st.session_state:
+    st.session_state.correct_answer = None
+if 'has_answered' not in st.session_state:
+    st.session_state.has_answered = False
+if 'last_quiz_content' not in st.session_state:
+    st.session_state.last_quiz_content = None
+if 'last_quiz_genre' not in st.session_state:
+    st.session_state.last_quiz_genre = None
+
 # 環境変数の読み込み
 env_path = Path(__file__).parent / '.env'
 load_dotenv(env_path)
@@ -212,6 +177,16 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 # データベースの初期化
 init_db()
+
+# メインページのタイトル
+st.title("PP - AIパーソナル学習")
+
+# サイドバーでモード選択
+st.sidebar.title("学習モード選択")
+mode = st.sidebar.radio(
+    "モードを選択してください：",
+    ["4択クイズ", "記述式クイズ", "学習ログ"]
+)
 
 # デバッグモードの切り替え
 debug_mode = st.sidebar.checkbox("デバッグモード", value=False, key='debug_mode')
