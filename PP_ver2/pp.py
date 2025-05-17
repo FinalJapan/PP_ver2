@@ -226,44 +226,32 @@ def generate_quiz_with_retry(quiz_type="multiple_choice"):
             ジャンル：{selected_genre}
             """
         else:  # written_answer
-            # 前回の4択問題の内容を取得
-            last_quiz = st.session_state.last_quiz_content
-            last_genre = st.session_state.last_quiz_genre
+            prompt = f"""
+            日本の歴史の「{selected_genre}」に関する記述式の問題を1つ生成してください。
             
-            if last_quiz and last_genre:
-                prompt = f"""
-                以下の4択問題の内容を発展させた、より詳細な記述式問題を生成してください。
-
-                前回の問題：
-                {last_quiz}
-
-                以下の条件を満たす発展的な問題を生成してください：
-                1. 前回の問題の内容に関連し、より深い理解を問う問題
-                2. 歴史的背景や因果関係、影響などを説明させる問題
-                3. 単なる暗記ではなく、考察力を問う内容
-                4. 正解には詳細な説明と具体例を含める
-
-                以下の形式で出力してください：
-                質問：
-                正解：（詳細な説明）
-                ジャンル：{last_genre}
-                """
-            else:
-                # 前回の問題がない場合は新しいトピックで生成
-                prompt = f"""
-                日本の歴史の「{selected_genre}」に関する記述式の問題を1つ生成してください。
-                
-                以下の条件を満たす問題を生成してください：
-                1. 質問は具体的で明確であること
-                2. 正解は詳細な説明を含むこと（単なる単語や数字ではなく）
-                3. 歴史的な文脈や意義が理解できる内容であること
-                4. 考察力を問う内容であること
-                
-                以下の形式で出力してください：
-                質問：
-                正解：（詳細な説明）
-                ジャンル：{selected_genre}
-                """
+            以下の条件を満たす問題を生成してください：
+            1. 歴史的な出来事の因果関係や影響を説明させる問題
+            2. 時代背景や社会状況との関連を考察させる問題
+            3. 単なる年号や人物名ではなく、歴史的な意義や評価を問う問題
+            4. 複数の視点から考察できる問題
+            
+            回答例には以下の要素を必ず含めてください：
+            1. 主要な歴史的事実の説明
+            2. 背景となる社会状況
+            3. 歴史的な影響や意義
+            4. 具体的な事例や関連する出来事
+            
+            以下の形式で出力してください：
+            質問：（歴史的考察を促す問い）
+            模範解答：
+            （段落分けされた詳細な解説）
+            ・歴史的事実の説明
+            ・社会的背景
+            ・影響と意義
+            ・具体例
+            
+            ジャンル：{selected_genre}
+            """
         
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(
@@ -282,11 +270,6 @@ def generate_quiz_with_retry(quiz_type="multiple_choice"):
             
         if st.session_state.get('debug_mode', False):
             st.write("生成された内容:", response.text)
-        
-        # 4択問題の場合、内容を保存
-        if quiz_type == "multiple_choice":
-            st.session_state.last_quiz_content = response.text
-            st.session_state.last_quiz_genre = selected_genre
         
         return response.text, selected_genre
     except Exception as e:
@@ -423,11 +406,6 @@ def written_quiz_mode():
                 if total > 0:
                     st.sidebar.text(f"{genre}: {accuracy}% ({correct}/{total})")
 
-        # 前回の4択問題の情報を表示
-        if st.session_state.last_quiz_content:
-            with st.expander("前回の4択問題"):
-                st.write(st.session_state.last_quiz_content)
-
         if st.button("新しい問題を生成", key="written_generate"):
             # 新しい問題を生成する際に回答フラグをリセット
             st.session_state.has_answered = False
@@ -438,11 +416,17 @@ def written_quiz_mode():
                         lines = [line.strip() for line in quiz_text.split('\n') if line.strip()]
                         
                         question = next((line.replace('質問：', '').strip() for line in lines if '質問：' in line), None)
-                        answer = next((line.replace('正解：', '').strip() for line in lines if '正解：' in line), None)
+                        # 模範解答の抽出方法を改善
+                        answer_start = quiz_text.find('模範解答：')
+                        genre_start = quiz_text.find('ジャンル：')
+                        if answer_start != -1 and genre_start != -1:
+                            answer = quiz_text[answer_start + 5:genre_start].strip()
+                        else:
+                            answer = next((line.replace('模範解答：', '').strip() for line in lines if '模範解答：' in line), None)
                         
                         if question and answer:
                             st.session_state.current_question = question
-                            st.session_state.correct_answer = str(answer)
+                            st.session_state.correct_answer = answer
                             st.session_state.current_genre = genre
                         else:
                             st.error("問題の形式が正しくありません。もう一度生成してください。")
