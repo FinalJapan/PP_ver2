@@ -12,7 +12,7 @@ import random
 # ページ設定
 st.set_page_config(
     page_title="PP - AIパーソナル学習",
-    page_icon="📚",
+    page_icon="📓",
 )
 
 # データベースファイルのパスを設定
@@ -387,7 +387,7 @@ def written_quiz_mode():
                         
                         if question and answer:
                             st.session_state.current_question = question
-                            st.session_state.correct_answer = answer
+                            st.session_state.correct_answer = str(answer)  # 確実に文字列に変換
                             st.session_state.current_genre = genre
                         else:
                             st.error("問題の形式が正しくありません。もう一度生成してください。")
@@ -432,8 +432,10 @@ def written_quiz_mode():
                 user_answer = st.text_area("答えを入力してください：")
                 
                 if st.button("回答する"):
-                    # 回答の評価
-                    is_correct = user_answer.strip().lower() == st.session_state.correct_answer.strip().lower()
+                    # 回答の評価（文字列として比較）
+                    user_answer_processed = str(user_answer).strip().lower()
+                    correct_answer_processed = str(st.session_state.correct_answer).strip().lower()
+                    is_correct = user_answer_processed == correct_answer_processed
                     
                     # 回答状態を保存
                     st.session_state.has_answered = True
@@ -488,7 +490,7 @@ def written_quiz_mode():
                             col1, col2 = st.columns(2)
                             with col1:
                                 st.write("あなたの回答:")
-                                st.warning(st.session_state.user_answer)
+                                st.warning(user_answer)
                             with col2:
                                 st.write("模範解答:")
                                 st.success(st.session_state.correct_answer)
