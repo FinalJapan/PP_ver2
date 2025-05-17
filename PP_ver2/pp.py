@@ -456,7 +456,12 @@ def written_quiz_mode():
                 
                 if st.session_state.is_correct:
                     st.success("正解です！")
-                    st.write("模範解答:", st.session_state.correct_answer)
+                    # 模範解答を箇条書きで表示
+                    st.write("📝 模範解答:")
+                    answer_parts = st.session_state.correct_answer.split('・')
+                    for part in answer_parts[1:]:  # 最初の空要素をスキップ
+                        if part.strip():  # 空の部分をスキップ
+                            st.markdown(f"• {part.strip()}")
                 else:
                     st.error("不正解です。")
                     # 不正解の場合、より詳しいフィードバックを表示
@@ -469,7 +474,11 @@ def written_quiz_mode():
                         st.warning(st.session_state.user_answer)
                     with col2:
                         st.write("模範解答:")
-                        st.success(st.session_state.correct_answer)
+                        # 模範解答を箇条書きで表示
+                        answer_parts = st.session_state.correct_answer.split('・')
+                        for part in answer_parts[1:]:  # 最初の空要素をスキップ
+                            if part.strip():  # 空の部分をスキップ
+                                st.markdown(f"• {part.strip()}")
                 
                 # 次の問題へのガイド
                 st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
@@ -524,7 +533,12 @@ def written_quiz_mode():
                         
                         if is_correct:
                             st.success("正解です！")
-                            st.write("模範解答:", st.session_state.correct_answer)
+                            # 模範解答を箇条書きで表示
+                            st.write("📝 模範解答:")
+                            answer_parts = st.session_state.correct_answer.split('・')
+                            for part in answer_parts[1:]:  # 最初の空要素をスキップ
+                                if part.strip():  # 空の部分をスキップ
+                                    st.markdown(f"• {part.strip()}")
                         else:
                             st.error("不正解です。")
                             # 不正解の場合、より詳しいフィードバックを表示
@@ -537,7 +551,11 @@ def written_quiz_mode():
                                 st.warning(user_answer)
                             with col2:
                                 st.write("模範解答:")
-                                st.success(st.session_state.correct_answer)
+                                # 模範解答を箇条書きで表示
+                                answer_parts = st.session_state.correct_answer.split('・')
+                                for part in answer_parts[1:]:  # 最初の空要素をスキップ
+                                    if part.strip():  # 空の部分をスキップ
+                                        st.markdown(f"• {part.strip()}")
                         
                         # 次の問題へのガイド
                         st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
@@ -546,7 +564,12 @@ def written_quiz_mode():
                         st.error(f"データベース操作中にエラーが発生しました: {str(e)}")
                         if is_correct:
                             st.success("正解です！")
-                            st.write("模範解答:", st.session_state.correct_answer)
+                            # 模範解答を箇条書きで表示
+                            st.write("📝 模範解答:")
+                            answer_parts = st.session_state.correct_answer.split('・')
+                            for part in answer_parts[1:]:  # 最初の空要素をスキップ
+                                if part.strip():  # 空の部分をスキップ
+                                    st.markdown(f"• {part.strip()}")
                         else:
                             st.error("不正解です。")
                             # エラー時でも正解は表示
