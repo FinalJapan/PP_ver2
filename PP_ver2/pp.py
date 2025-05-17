@@ -108,17 +108,42 @@ def get_genre_stats():
 
 # ジャンルの統計を更新
 def update_genre_stats(genre, is_correct):
-    conn = sqlite3.connect('learning_log.db')
-    c = conn.cursor()
-    c.execute('''
-        UPDATE genre_stats 
-        SET total_questions = total_questions + 1,
-            correct_answers = correct_answers + ?,
-            last_updated = CURRENT_TIMESTAMP
-        WHERE genre = ?
-    ''', (1 if is_correct else 0, genre))
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(str(get_db_path()))
+        c = conn.cursor()
+        
+        # 現在の統計を取得
+        c.execute('''
+            SELECT total_questions, correct_answers
+            FROM genre_stats
+            WHERE genre = ?
+        ''', (genre,))
+        
+        current_stats = c.fetchone()
+        if current_stats:
+            total_questions = int(current_stats[0])
+            correct_answers = int(current_stats[1])
+            
+            # 値を更新
+            total_questions += 1
+            if is_correct:
+                correct_answers += 1
+            
+            # 更新クエリを実行
+            c.execute('''
+                UPDATE genre_stats 
+                SET total_questions = ?,
+                    correct_answers = ?,
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE genre = ?
+            ''', (total_questions, correct_answers, genre))
+            
+        conn.commit()
+    except sqlite3.Error as e:
+        st.error(f"統計の更新中にエラーが発生しました: {str(e)}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 # 問題生成時のジャンル選択（正答率が低いジャンルを優先）
 def select_genre():
