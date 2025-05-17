@@ -304,6 +304,50 @@ def generate_quiz_with_retry(quiz_type="multiple_choice"):
         st.error(f"問題生成中にエラーが発生しました: {str(e)}")
         return None, None
 
+# 4択クイズ用の回答保存関数
+def save_quiz_answer(question, user_answer, correct_answer, is_correct, genre):
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        c = conn.cursor()
+        
+        c.execute("""
+            INSERT INTO learning_log (question, user_answer, correct_answer, is_correct, genre)
+            VALUES (?, ?, ?, ?, ?)
+        """, (question, user_answer, correct_answer, is_correct, genre))
+        conn.commit()
+        
+        # ジャンルの統計を更新
+        update_genre_stats(genre, is_correct)
+        
+    except sqlite3.Error as e:
+        st.error(f"データベース操作中にエラーが発生しました: {str(e)}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+# 記述式問題用の回答保存関数
+def save_written_answer(question, user_answer, model_answer, is_correct, genre):
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(str(db_path))
+        c = conn.cursor()
+        
+        c.execute("""
+            INSERT INTO learning_log (question, user_answer, correct_answer, is_correct, genre)
+            VALUES (?, ?, ?, ?, ?)
+        """, (question, user_answer, model_answer, is_correct, genre))
+        conn.commit()
+        
+        # ジャンルの統計を更新
+        update_genre_stats(genre, is_correct)
+        
+    except sqlite3.Error as e:
+        st.error(f"データベース操作中にエラーが発生しました: {str(e)}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
 def quiz_mode():
     try:
         # 統計情報の表示
@@ -314,9 +358,7 @@ def quiz_mode():
                 if total > 0:
                     st.sidebar.text(f"{genre}: {accuracy}% ({correct}/{total})")
 
-        # 新しい問題生成ボタン
         if st.button("新しい問題を生成", key="quiz_generate"):
-            # 新しい問題を生成する際に回答フラグをリセット
             st.session_state.has_answered = False
             quiz_text, genre = generate_quiz_with_retry(quiz_type="multiple_choice")
             if quiz_text:
@@ -328,98 +370,55 @@ def quiz_mode():
                     correct = int(next((line.replace('正解：', '').strip() for line in lines if '正解：' in line), None))
                     
                     if question and len(options) == 4 and correct:
-                        st.session_state.current_question = question
-                        st.session_state.correct_answer = correct
-                        st.session_state.options = options
-                        st.session_state.current_genre = genre
+                        st.session_state.quiz_question = question
+                        st.session_state.quiz_correct = correct
+                        st.session_state.quiz_options = options
+                        st.session_state.quiz_genre = genre
                     else:
                         st.error("問題の形式が正しくありません。もう一度生成してください。")
                 except Exception as e:
                     st.error(f"問題の解析中にエラーが発生しました: {str(e)}")
 
-        if st.session_state.current_question:
-            st.write(st.session_state.current_question)
+        if hasattr(st.session_state, 'quiz_question'):
+            st.write(st.session_state.quiz_question)
             
-            # 回答済みの場合は選択肢を無効化
             if st.session_state.has_answered:
-                # 回答済みの場合は選択肢を表示のみ
                 st.radio(
                     "答えを選んでください：",
-                    st.session_state.options,
+                    st.session_state.quiz_options,
                     key="answered_radio",
                     disabled=True,
                 )
                 if st.session_state.is_correct:
                     st.success("正解です！")
                 else:
-                    st.error(f"不正解です。正解は: {st.session_state.options[st.session_state.correct_answer-1]}")
+                    st.error(f"不正解です。正解は: {st.session_state.quiz_options[st.session_state.quiz_correct-1]}")
                 
-                # 次の問題へのガイド
                 st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
             else:
-                # 未回答の場合は通常の選択肢を表示
-                user_answer = st.radio("答えを選んでください：", st.session_state.options)
+                user_answer = st.radio("答えを選んでください：", st.session_state.quiz_options)
                 
                 if st.button("回答する"):
-                    selected_index = st.session_state.options.index(user_answer) + 1
-                    is_correct = selected_index == st.session_state.correct_answer
+                    selected_index = st.session_state.quiz_options.index(user_answer) + 1
+                    is_correct = selected_index == st.session_state.quiz_correct
                     
-                    # 回答状態を保存
                     st.session_state.has_answered = True
                     st.session_state.is_correct = is_correct
                     
-                    try:
-                        # データベースパスの取得
-                        db_path = get_db_path()
-                        
-                        # データベースディレクトリの存在確認と作成
-                        db_path.parent.mkdir(parents=True, exist_ok=True)
-                        
-                        # 結果をデータベースに保存
-                        conn = sqlite3.connect(str(db_path))
-                        c = conn.cursor()
-                        
-                        # learning_logテーブルが存在しない場合は作成
-                        c.execute('''
-                            CREATE TABLE IF NOT EXISTS learning_log
-                            (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                             question TEXT,
-                             user_answer TEXT,
-                             correct_answer TEXT,
-                             is_correct BOOLEAN,
-                             genre TEXT)
-                        ''')
-                        
-                        c.execute("""
-                            INSERT INTO learning_log (question, user_answer, correct_answer, is_correct, genre)
-                            VALUES (?, ?, ?, ?, ?)
-                        """, (st.session_state.current_question, user_answer, 
-                              st.session_state.options[st.session_state.correct_answer-1], 
-                              is_correct, st.session_state.current_genre))
-                        conn.commit()
-                        
-                        # ジャンルの統計を更新
-                        update_genre_stats(st.session_state.current_genre, is_correct)
-                        
-                        if is_correct:
-                            st.success("正解です！")
-                        else:
-                            st.error(f"不正解です。正解は: {st.session_state.options[st.session_state.correct_answer-1]}")
-                        
-                        # 次の問題へのガイド
-                        st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
-                            
-                    except sqlite3.Error as e:
-                        st.error(f"データベース操作中にエラーが発生しました: {str(e)}")
-                        if is_correct:
-                            st.success("正解です！")
-                        else:
-                            st.error(f"不正解です。正解は: {st.session_state.options[st.session_state.correct_answer-1]}")
-                    finally:
-                        if 'conn' in locals():
-                            conn.close()
-                            
+                    save_quiz_answer(
+                        st.session_state.quiz_question,
+                        user_answer,
+                        st.session_state.quiz_options[st.session_state.quiz_correct-1],
+                        is_correct,
+                        st.session_state.quiz_genre
+                    )
+                    
+                    if is_correct:
+                        st.success("正解です！")
+                    else:
+                        st.error(f"不正解です。正解は: {st.session_state.quiz_options[st.session_state.quiz_correct-1]}")
+                    
+                    st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
     except Exception as e:
         st.error(f"予期せぬエラーが発生しました: {str(e)}")
         st.info("アプリケーションを再読み込みしてください。")
@@ -435,173 +434,64 @@ def written_quiz_mode():
                     st.sidebar.text(f"{genre}: {accuracy}% ({correct}/{total})")
 
         if st.button("新しい問題を生成", key="written_generate"):
-            # 新しい問題を生成する際に回答フラグをリセット
             st.session_state.has_answered = False
-            with st.spinner('記述式問題を生成中...'):
-                quiz_text, genre = generate_quiz_with_retry(quiz_type="written_answer")
-                if quiz_text:
-                    try:
-                        lines = [line.strip() for line in quiz_text.split('\n') if line.strip()]
-                        
-                        question = next((line.replace('質問：', '').strip() for line in lines if '質問：' in line), None)
-                        # 模範解答の抽出方法を改善
-                        answer_start = quiz_text.find('模範解答：')
-                        if answer_start != -1:
-                            # ジャンル行を探す
-                            genre_line = next((i for i, line in enumerate(lines) if '模範解答：' in line), None)
-                            if genre_line is not None:
-                                # 模範解答の開始行から、ジャンル行の前までの全てのテキストを取得
-                                answer_lines = lines[genre_line + 1:-1]  # 最後の行（ジャンル）を除外
-                                answer = '\n'.join(answer_lines)
-                            else:
-                                answer = "模範解答の抽出に失敗しました。"
-                        else:
-                            answer = "模範解答が見つかりませんでした。"
-                        
-                        if question and answer:
-                            st.session_state.current_question = question
-                            st.session_state.correct_answer = answer
-                            st.session_state.current_genre = genre
+            quiz_text, genre = generate_quiz_with_retry(quiz_type="written_answer")
+            if quiz_text:
+                try:
+                    lines = [line.strip() for line in quiz_text.split('\n') if line.strip()]
+                    
+                    question = next((line.replace('質問：', '').strip() for line in lines if '質問：' in line), None)
+                    answer_start = quiz_text.find('模範解答：')
+                    if answer_start != -1:
+                        answer_text = quiz_text[answer_start:].strip()
+                        if question and answer_text:
+                            st.session_state.written_question = question
+                            st.session_state.written_answer = answer_text
+                            st.session_state.written_genre = genre
                         else:
                             st.error("問題の形式が正しくありません。もう一度生成してください。")
-                    except Exception as e:
-                        st.error(f"問題の解析中にエラーが発生しました: {str(e)}")
+                except Exception as e:
+                    st.error(f"問題の解析中にエラーが発生しました: {str(e)}")
 
-        if st.session_state.current_question:
-            st.write(st.session_state.current_question)
+        if hasattr(st.session_state, 'written_question'):
+            st.write(st.session_state.written_question)
             
-            # 回答済みの場合
             if st.session_state.has_answered:
-                # 前回の回答を表示
                 st.text_area(
                     "あなたの回答：",
-                    value=st.session_state.user_answer,
+                    value=st.session_state.user_written_answer,
                     disabled=True
                 )
                 
-                if st.session_state.is_correct:
-                    st.success("正解です！")
-                    # 模範解答を箇条書きで表示
-                    st.write("📝 模範解答:")
-                    answer_parts = str(st.session_state.correct_answer).split('・')
-                    for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                        if part.strip():  # 空の部分をスキップ
-                            st.markdown(f"• {part.strip()}")
-                else:
-                    st.error("不正解です。")
-                    # 不正解の場合、より詳しいフィードバックを表示
-                    st.write("💡 解説:")
-                    st.write("あなたの回答と模範解答を比較して、理解を深めましょう。")
-                    # 回答と正解を横に並べて表示
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("あなたの回答:")
-                        st.warning(st.session_state.user_answer)
-                    with col2:
-                        st.write("模範解答:")
-                        # 模範解答を箇条書きで表示
-                        answer_parts = str(st.session_state.correct_answer).split('・')
-                        for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                            if part.strip():  # 空の部分をスキップ
-                                st.markdown(f"• {part.strip()}")
+                st.write("📝 模範解答:")
+                answer_parts = st.session_state.written_answer.split('・')
+                for part in answer_parts[1:]:
+                    if part.strip():
+                        st.markdown(f"• {part.strip()}")
                 
-                # 次の問題へのガイド
                 st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
             else:
-                # 未回答の場合
                 user_answer = st.text_area("答えを入力してください：")
                 
                 if st.button("回答する"):
-                    # 回答の評価（文字列として比較）
-                    user_answer_processed = str(user_answer).strip().lower()
-                    correct_answer_processed = str(st.session_state.correct_answer).strip().lower()
-                    is_correct = user_answer_processed == correct_answer_processed
-                    
-                    # 回答状態を保存
                     st.session_state.has_answered = True
-                    st.session_state.is_correct = is_correct
-                    st.session_state.user_answer = user_answer
+                    st.session_state.user_written_answer = user_answer
                     
-                    try:
-                        # データベースパスの取得
-                        db_path = get_db_path()
-                        
-                        # データベースディレクトリの存在確認と作成
-                        db_path.parent.mkdir(parents=True, exist_ok=True)
-                        
-                        # 結果をデータベースに保存
-                        conn = sqlite3.connect(str(db_path))
-                        c = conn.cursor()
-                        
-                        # learning_logテーブルが存在しない場合は作成
-                        c.execute('''
-                            CREATE TABLE IF NOT EXISTS learning_log
-                            (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                             question TEXT,
-                             user_answer TEXT,
-                             correct_answer TEXT,
-                             is_correct BOOLEAN,
-                             genre TEXT)
-                        ''')
-                        
-                        c.execute("""
-                            INSERT INTO learning_log (question, user_answer, correct_answer, is_correct, genre)
-                            VALUES (?, ?, ?, ?, ?)
-                        """, (st.session_state.current_question, user_answer, 
-                              st.session_state.correct_answer, 
-                              is_correct, st.session_state.current_genre))
-                        conn.commit()
-                        
-                        # ジャンルの統計を更新
-                        update_genre_stats(st.session_state.current_genre, is_correct)
-                        
-                        if is_correct:
-                            st.success("正解です！")
-                            # 模範解答を箇条書きで表示
-                            st.write("📝 模範解答:")
-                            answer_parts = str(st.session_state.correct_answer).split('・')
-                            for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                                if part.strip():  # 空の部分をスキップ
-                                    st.markdown(f"• {part.strip()}")
-                        else:
-                            st.error("不正解です。")
-                            # 不正解の場合、より詳しいフィードバックを表示
-                            st.write("💡 解説:")
-                            st.write("あなたの回答と模範解答を比較して、理解を深めましょう。")
-                            # 回答と正解を横に並べて表示
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.write("あなたの回答:")
-                                st.warning(user_answer)
-                            with col2:
-                                st.write("模範解答:")
-                                # 模範解答を箇条書きで表示
-                                answer_parts = str(st.session_state.correct_answer).split('・')
-                                for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                                    if part.strip():  # 空の部分をスキップ
-                                        st.markdown(f"• {part.strip()}")
-                        
-                        # 次の問題へのガイド
-                        st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
-                            
-                    except sqlite3.Error as e:
-                        st.error(f"データベース操作中にエラーが発生しました: {str(e)}")
-                        if is_correct:
-                            st.success("正解です！")
-                            # 模範解答を箇条書きで表示
-                            st.write("📝 模範解答:")
-                            answer_parts = str(st.session_state.correct_answer).split('・')
-                            for part in answer_parts[1:]:  # 最初の空要素をスキップ
-                                if part.strip():  # 空の部分をスキップ
-                                    st.markdown(f"• {part.strip()}")
-                        else:
-                            st.error("不正解です。")
-                            # エラー時でも正解は表示
-                    finally:
-                        if 'conn' in locals():
-                            conn.close()
-                            
+                    save_written_answer(
+                        st.session_state.written_question,
+                        user_answer,
+                        st.session_state.written_answer,
+                        True,  # 記述式は自己評価として扱う
+                        st.session_state.written_genre
+                    )
+                    
+                    st.write("📝 模範解答:")
+                    answer_parts = st.session_state.written_answer.split('・')
+                    for part in answer_parts[1:]:
+                        if part.strip():
+                            st.markdown(f"• {part.strip()}")
+                    
+                    st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
     except Exception as e:
         st.error(f"予期せぬエラーが発生しました: {str(e)}")
         st.info("アプリケーションを再読み込みしてください。")
