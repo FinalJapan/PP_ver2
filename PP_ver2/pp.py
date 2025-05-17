@@ -9,11 +9,30 @@ from pathlib import Path
 from datetime import datetime
 import random
 
-# ページ設定
+# セッション状態の初期化（最初に配置）
+if 'current_mode' not in st.session_state:
+    st.session_state.current_mode = "4択クイズ"  # デフォルトモード
+
+# ページ設定（importの直後に配置）
 st.set_page_config(
     page_title="PP - AIパーソナル学習",
     page_icon="📓",
+    layout="wide" if st.session_state.current_mode == "記述式クイズ" else "centered"
 )
+
+# モードに応じたレイアウト設定
+def set_page_layout(mode):
+    if mode == "記述式クイズ":
+        st.set_page_config(
+            page_title="PP - AIパーソナル学習",
+            page_icon="📓",
+            layout="wide"
+        )
+    else:
+        st.set_page_config(
+            page_title="PP - AIパーソナル学習",
+            page_icon="📓",
+        )
 
 # データベースファイルのパスを設定
 def get_db_path():
@@ -131,7 +150,7 @@ def select_genre():
     else:  # それ以外の場合はランダムに選択
         return random.choice([genre for genre, _, _, _ in stats])
 
-# セッション状態の初期化
+# その他のセッション状態の初期化
 if 'api_key_set' not in st.session_state:
     st.session_state.api_key_set = False
 if 'current_question' not in st.session_state:
@@ -186,6 +205,18 @@ st.sidebar.title("学習モード選択")
 mode = st.sidebar.radio(
     "モードを選択してください：",
     ["4択クイズ", "記述式クイズ", "学習ログ"]
+)
+
+# モードが変更された場合、セッション状態を更新してページをリロード
+if st.session_state.current_mode != mode:
+    st.session_state.current_mode = mode
+    st.experimental_rerun()
+
+# ページ設定
+st.set_page_config(
+    page_title="PP - AIパーソナル学習",
+    page_icon="📓",
+    layout="wide" if mode == "記述式クイズ" else "centered"
 )
 
 # デバッグモードの切り替え
