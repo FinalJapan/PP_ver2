@@ -210,7 +210,7 @@ mode = st.sidebar.radio(
 # モードが変更された場合、セッション状態を更新してページをリロード
 if st.session_state.current_mode != mode:
     st.session_state.current_mode = mode
-    st.experimental_rerun()
+    st.rerun()
 
 # ページ設定
 st.set_page_config(
