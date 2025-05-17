@@ -1,4 +1,12 @@
 import streamlit as st
+
+# 最初にページ設定を行う
+st.set_page_config(
+    page_title="PP - AIパーソナル学習",
+    page_icon="📓",
+    layout="wide" if "current_mode" in st.session_state and st.session_state.current_mode == "記述式クイズ" else "centered"
+)
+
 import google.generativeai as genai
 import sqlite3
 import os
@@ -9,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 import random
 
-# セッション状態の初期化（最初に配置）
+# セッション状態の初期化
 if 'current_mode' not in st.session_state:
     st.session_state.current_mode = "4択クイズ"  # デフォルトモード
 
