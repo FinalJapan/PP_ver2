@@ -237,7 +237,7 @@ def generate_quiz_with_retry(quiz_type="multiple_choice"):
             
             以下の形式で必ず出力してください：
             ---
-            質問：（歴史的考察を促す問い）
+            質問：（歴史的考察を促す問い。箇条書きで表示）
             
             模範解答：
             ・歴史的事実の説明：
