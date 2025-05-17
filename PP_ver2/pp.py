@@ -463,11 +463,27 @@ def written_quiz_mode():
                     disabled=True
                 )
                 
-                st.write("📝 模範解答:")
-                answer_parts = st.session_state.written_answer.split('・')
-                for part in answer_parts[1:]:
-                    if part.strip():
-                        st.markdown(f"• {part.strip()}")
+                # 回答の評価（文字列として比較）
+                user_answer_processed = str(st.session_state.user_written_answer).strip().lower()
+                correct_answer_processed = str(st.session_state.written_answer).strip().lower()
+                is_correct = user_answer_processed == correct_answer_processed
+
+                if is_correct:
+                    st.success("🎉 正解です！")
+                else:
+                    st.error("📝 不正解です。以下の模範解答を参考に、理解を深めましょう。")
+
+                # 回答と模範解答を横に並べて表示
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("💭 あなたの回答:")
+                    st.info(st.session_state.user_written_answer)
+                with col2:
+                    st.write("📚 模範解答:")
+                    answer_parts = st.session_state.written_answer.split('・')
+                    for part in answer_parts[1:]:
+                        if part.strip():
+                            st.markdown(f"• {part.strip()}")
                 
                 st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
             else:
@@ -477,19 +493,35 @@ def written_quiz_mode():
                     st.session_state.has_answered = True
                     st.session_state.user_written_answer = user_answer
                     
+                    # 回答の評価（文字列として比較）
+                    user_answer_processed = str(user_answer).strip().lower()
+                    correct_answer_processed = str(st.session_state.written_answer).strip().lower()
+                    is_correct = user_answer_processed == correct_answer_processed
+                    
                     save_written_answer(
                         st.session_state.written_question,
                         user_answer,
                         st.session_state.written_answer,
-                        True,  # 記述式は自己評価として扱う
+                        is_correct,  # 正誤判定の結果を保存
                         st.session_state.written_genre
                     )
                     
-                    st.write("📝 模範解答:")
-                    answer_parts = st.session_state.written_answer.split('・')
-                    for part in answer_parts[1:]:
-                        if part.strip():
-                            st.markdown(f"• {part.strip()}")
+                    if is_correct:
+                        st.success("🎉 正解です！")
+                    else:
+                        st.error("📝 不正解です。以下の模範解答を参考に、理解を深めましょう。")
+
+                    # 回答と模範解答を横に並べて表示
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("💭 あなたの回答:")
+                        st.info(user_answer)
+                    with col2:
+                        st.write("📚 模範解答:")
+                        answer_parts = st.session_state.written_answer.split('・')
+                        for part in answer_parts[1:]:
+                            if part.strip():
+                                st.markdown(f"• {part.strip()}")
                     
                     st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
     except Exception as e:
