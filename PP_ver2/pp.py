@@ -9,55 +9,76 @@ from pathlib import Path
 from datetime import datetime
 import random
 
+# データベースファイルのパスを設定
+def get_db_path():
+    if 'STREAMLIT_SHARING_MODE' in os.environ:
+        # Streamlit Cloud環境での保存先
+        return Path.home() / '.streamlit' / 'learning_log.db'
+    else:
+        # ローカル環境での保存先
+        return Path(__file__).parent / 'learning_log.db'
+
 # データベースの初期化関数
 def init_db():
-    conn = sqlite3.connect('learning_log.db')
-    c = conn.cursor()
+    db_path = get_db_path()
+    # データベースディレクトリの作成
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # 学習ログテーブルの更新（ジャンル列を追加）
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS learning_log
-        (id INTEGER PRIMARY KEY AUTOINCREMENT,
-         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-         question TEXT,
-         user_answer TEXT,
-         correct_answer TEXT,
-         is_correct BOOLEAN,
-         genre TEXT)
-    ''')
-    
-    # ジャンルごとの統計テーブル
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS genre_stats
-        (genre TEXT PRIMARY KEY,
-         total_questions INTEGER DEFAULT 0,
-         correct_answers INTEGER DEFAULT 0,
-         last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
-    ''')
-    
-    # 初期ジャンルの登録
-    genres = [
-        "古代（縄文・弥生・古墳時代）",
-        "飛鳥・奈良時代",
-        "平安時代",
-        "鎌倉時代",
-        "室町時代",
-        "安土桃山時代",
-        "江戸時代",
-        "明治時代",
-        "大正時代",
-        "昭和時代",
-        "平成・令和時代"
-    ]
-    
-    for genre in genres:
+    try:
+        conn = sqlite3.connect(str(db_path))
+        c = conn.cursor()
+        
+        # 学習ログテーブルの作成
         c.execute('''
-            INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
-            VALUES (?, 0, 0)
-        ''', (genre,))
-    
-    conn.commit()
-    conn.close()
+            CREATE TABLE IF NOT EXISTS learning_log
+            (id INTEGER PRIMARY KEY AUTOINCREMENT,
+             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+             question TEXT,
+             user_answer TEXT,
+             correct_answer TEXT,
+             is_correct BOOLEAN,
+             genre TEXT)
+        ''')
+        
+        # ジャンルごとの統計テーブル
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS genre_stats
+            (genre TEXT PRIMARY KEY,
+             total_questions INTEGER DEFAULT 0,
+             correct_answers INTEGER DEFAULT 0,
+             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
+        ''')
+        
+        # 初期ジャンルの登録
+        genres = [
+            "古代（縄文・弥生・古墳時代）",
+            "飛鳥・奈良時代",
+            "平安時代",
+            "鎌倉時代",
+            "室町時代",
+            "安土桃山時代",
+            "江戸時代",
+            "明治時代",
+            "大正時代",
+            "昭和時代",
+            "平成・令和時代"
+        ]
+        
+        for genre in genres:
+            c.execute('''
+                INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                VALUES (?, 0, 0)
+            ''', (genre,))
+        
+        conn.commit()
+        
+    except sqlite3.Error as e:
+        st.error(f"データベースの初期化中にエラーが発生しました: {str(e)}")
+        return False
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return True
 
 # ジャンルの正答率を取得
 def get_genre_stats():
@@ -329,23 +350,38 @@ def written_quiz_mode():
 def show_learning_log():
     st.subheader("学習履歴")
     
-    conn = sqlite3.connect('learning_log.db')
-    c = conn.cursor()
-    logs = c.execute("""
-        SELECT timestamp, question, user_answer, correct_answer, is_correct, genre
-        FROM learning_log 
-        ORDER BY timestamp DESC
-    """).fetchall()
-    conn.close()
-    
-    for log in logs:
-        with st.expander(f"{log[5]} - {log[1][:50]}..."):
-            st.write(f"回答日時: {log[0]}")
-            st.write(f"ジャンル: {log[5]}")
-            st.write(f"問題: {log[1]}")
-            st.write(f"あなたの回答: {log[2]}")
-            st.write(f"正解: {log[3]}")
-            st.write("結果: " + ("正解" if log[4] else "不正解"))
+    try:
+        db_path = get_db_path()
+        if not db_path.exists():
+            st.info("学習履歴はまだありません。")
+            return
+            
+        conn = sqlite3.connect(str(db_path))
+        c = conn.cursor()
+        logs = c.execute("""
+            SELECT timestamp, question, user_answer, correct_answer, is_correct, genre
+            FROM learning_log 
+            ORDER BY timestamp DESC
+        """).fetchall()
+        
+        if not logs:
+            st.info("学習履歴はまだありません。")
+            return
+            
+        for log in logs:
+            with st.expander(f"{log[5]} - {log[1][:50]}..."):
+                st.write(f"回答日時: {log[0]}")
+                st.write(f"ジャンル: {log[5]}")
+                st.write(f"問題: {log[1]}")
+                st.write(f"あなたの回答: {log[2]}")
+                st.write(f"正解: {log[3]}")
+                st.write("結果: " + ("正解" if log[4] else "不正解"))
+                
+    except sqlite3.Error as e:
+        st.error(f"学習履歴の取得中にエラーが発生しました: {str(e)}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 # モードに応じた表示
 if mode == "4択クイズ":
