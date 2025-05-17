@@ -471,7 +471,7 @@ def written_quiz_mode():
                 if is_correct:
                     st.success("🎉 正解です！")
                 else:
-                    st.error("📝 不正解です。以下の模範解答を参考に、理解を深めましょう。")
+                    st.error("不正解です。以下の模範解答を参考に、理解を深めましょう。")
 
                 # 回答と模範解答を横に並べて表示
                 col1, col2 = st.columns(2)
@@ -483,7 +483,8 @@ def written_quiz_mode():
                     answer_parts = st.session_state.written_answer.split('・')
                     for part in answer_parts[1:]:
                         if part.strip():
-                            st.markdown(f"• {part.strip()}")
+                            # テキストサイズを統一するためにst.writeを使用
+                            st.write(f"• {part.strip()}")
                 
                 st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
             else:
@@ -521,7 +522,8 @@ def written_quiz_mode():
                         answer_parts = st.session_state.written_answer.split('・')
                         for part in answer_parts[1:]:
                             if part.strip():
-                                st.markdown(f"• {part.strip()}")
+                                # テキストサイズを統一するためにst.writeを使用
+                                st.write(f"• {part.strip()}")
                     
                     st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
     except Exception as e:
