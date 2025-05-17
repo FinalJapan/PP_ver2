@@ -458,7 +458,7 @@ def written_quiz_mode():
                     st.success("正解です！")
                     # 模範解答を箇条書きで表示
                     st.write("📝 模範解答:")
-                    answer_parts = st.session_state.correct_answer.split('・')
+                    answer_parts = str(st.session_state.correct_answer).split('・')
                     for part in answer_parts[1:]:  # 最初の空要素をスキップ
                         if part.strip():  # 空の部分をスキップ
                             st.markdown(f"• {part.strip()}")
@@ -475,7 +475,7 @@ def written_quiz_mode():
                     with col2:
                         st.write("模範解答:")
                         # 模範解答を箇条書きで表示
-                        answer_parts = st.session_state.correct_answer.split('・')
+                        answer_parts = str(st.session_state.correct_answer).split('・')
                         for part in answer_parts[1:]:  # 最初の空要素をスキップ
                             if part.strip():  # 空の部分をスキップ
                                 st.markdown(f"• {part.strip()}")
@@ -535,7 +535,7 @@ def written_quiz_mode():
                             st.success("正解です！")
                             # 模範解答を箇条書きで表示
                             st.write("📝 模範解答:")
-                            answer_parts = st.session_state.correct_answer.split('・')
+                            answer_parts = str(st.session_state.correct_answer).split('・')
                             for part in answer_parts[1:]:  # 最初の空要素をスキップ
                                 if part.strip():  # 空の部分をスキップ
                                     st.markdown(f"• {part.strip()}")
@@ -552,7 +552,7 @@ def written_quiz_mode():
                             with col2:
                                 st.write("模範解答:")
                                 # 模範解答を箇条書きで表示
-                                answer_parts = st.session_state.correct_answer.split('・')
+                                answer_parts = str(st.session_state.correct_answer).split('・')
                                 for part in answer_parts[1:]:  # 最初の空要素をスキップ
                                     if part.strip():  # 空の部分をスキップ
                                         st.markdown(f"• {part.strip()}")
@@ -566,7 +566,7 @@ def written_quiz_mode():
                             st.success("正解です！")
                             # 模範解答を箇条書きで表示
                             st.write("📝 模範解答:")
-                            answer_parts = st.session_state.correct_answer.split('・')
+                            answer_parts = str(st.session_state.correct_answer).split('・')
                             for part in answer_parts[1:]:  # 最初の空要素をスキップ
                                 if part.strip():  # 空の部分をスキップ
                                     st.markdown(f"• {part.strip()}")
