@@ -9,6 +9,13 @@ from pathlib import Path
 from datetime import datetime
 import random
 
+# ページ設定
+st.set_page_config(
+    page_title="PP - AIパーソナル学習",
+    page_icon="📚",
+    layout="wide"
+)
+
 # データベースファイルのパスを設定
 def get_db_path():
     if 'STREAMLIT_SHARING_MODE' in os.environ:
@@ -169,7 +176,7 @@ genai.configure(api_key=GOOGLE_API_KEY)
 init_db()
 
 # メインページのタイトル
-st.title("PP - AIパーソナル学習アシスタント")
+st.title("PP - AIパーソナル学習")
 
 # サイドバーでモード選択
 st.sidebar.title("学習モード選択")
@@ -399,12 +406,25 @@ def written_quiz_mode():
                     value=st.session_state.user_answer,
                     disabled=True
                 )
-                st.write("模範解答:", st.session_state.correct_answer)
                 
                 if st.session_state.is_correct:
                     st.success("正解です！")
+                    st.write("模範解答:", st.session_state.correct_answer)
                 else:
                     st.error("不正解です。")
+                    # 不正解の場合、より詳しいフィードバックを表示
+                    st.write("📝 正しい回答例:")
+                    st.info(st.session_state.correct_answer)
+                    st.write("💡 解説:")
+                    st.write("あなたの回答と模範解答を比較して、理解を深めましょう。")
+                    # 回答と正解を横に並べて表示
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("あなたの回答:")
+                        st.warning(st.session_state.user_answer)
+                    with col2:
+                        st.write("模範解答:")
+                        st.success(st.session_state.correct_answer)
                 
                 # 次の問題へのガイド
                 st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
@@ -455,23 +475,38 @@ def written_quiz_mode():
                         # ジャンルの統計を更新
                         update_genre_stats(st.session_state.current_genre, is_correct)
                         
-                        st.write("模範解答:", st.session_state.correct_answer)
-                        
                         if is_correct:
                             st.success("正解です！")
+                            st.write("模範解答:", st.session_state.correct_answer)
                         else:
                             st.error("不正解です。")
+                            # 不正解の場合、より詳しいフィードバックを表示
+                            st.write("📝 正しい回答例:")
+                            st.info(st.session_state.correct_answer)
+                            st.write("💡 解説:")
+                            st.write("あなたの回答と模範解答を比較して、理解を深めましょう。")
+                            # 回答と正解を横に並べて表示
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.write("あなたの回答:")
+                                st.warning(st.session_state.user_answer)
+                            with col2:
+                                st.write("模範解答:")
+                                st.success(st.session_state.correct_answer)
                         
                         # 次の問題へのガイド
                         st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
                             
                     except sqlite3.Error as e:
                         st.error(f"データベース操作中にエラーが発生しました: {str(e)}")
-                        st.write("模範解答:", st.session_state.correct_answer)
                         if is_correct:
                             st.success("正解です！")
+                            st.write("模範解答:", st.session_state.correct_answer)
                         else:
                             st.error("不正解です。")
+                            # エラー時でも正解は表示
+                            st.write("📝 正しい回答例:")
+                            st.info(st.session_state.correct_answer)
                     finally:
                         if 'conn' in locals():
                             conn.close()
