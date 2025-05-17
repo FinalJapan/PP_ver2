@@ -274,8 +274,6 @@ def generate_quiz_with_retry(quiz_type="multiple_choice"):
             ・影響と意義：
             （100字以内で記述）
             
-            ・具体例：
-            （100字以内で記述）
             ---
             
             ジャンル：{selected_genre}
@@ -439,26 +437,6 @@ def written_quiz_mode():
         # 回答エリアのコンテナを作成
         answer_container = st.container()
 
-        if st.button("新しい問題を生成", key="written_generate"):
-            st.session_state.has_answered = False
-            quiz_text, genre = generate_quiz_with_retry(quiz_type="written_answer")
-            if quiz_text:
-                try:
-                    lines = [line.strip() for line in quiz_text.split('\n') if line.strip()]
-                    
-                    question = next((line.replace('質問：', '').strip() for line in lines if '質問：' in line), None)
-                    answer_start = quiz_text.find('模範解答：')
-                    if answer_start != -1:
-                        answer_text = quiz_text[answer_start:].strip()
-                        if question and answer_text:
-                            st.session_state.written_question = question
-                            st.session_state.written_answer = answer_text
-                            st.session_state.written_genre = genre
-                        else:
-                            st.error("問題の形式が正しくありません。もう一度生成してください。")
-                except Exception as e:
-                    st.error(f"問題の解析中にエラーが発生しました: {str(e)}")
-
         # 問題文の表示
         if hasattr(st.session_state, 'written_question'):
             question_container.write(st.session_state.written_question)
@@ -492,8 +470,6 @@ def written_quiz_mode():
                         for part in answer_parts[1:]:
                             if part.strip():
                                 st.write(f"• {part.strip()}")
-                    
-                    st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
                 else:
                     user_answer = st.text_area("答えを入力してください：")
                     
@@ -530,8 +506,34 @@ def written_quiz_mode():
                             for part in answer_parts[1:]:
                                 if part.strip():
                                     st.write(f"• {part.strip()}")
-                        
-                        st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
+
+        # 新しい問題生成ボタンを問題文の下に配置
+        if st.button("新しい問題を生成", key="written_generate"):
+            st.session_state.has_answered = False
+            quiz_text, genre = generate_quiz_with_retry(quiz_type="written_answer")
+            if quiz_text:
+                try:
+                    lines = [line.strip() for line in quiz_text.split('\n') if line.strip()]
+                    
+                    question = next((line.replace('質問：', '').strip() for line in lines if '質問：' in line), None)
+                    answer_start = quiz_text.find('模範解答：')
+                    if answer_start != -1:
+                        answer_text = quiz_text[answer_start:].strip()
+                        if question and answer_text:
+                            st.session_state.written_question = question
+                            st.session_state.written_answer = answer_text
+                            st.session_state.written_genre = genre
+                            # 問題生成後に画面をリフレッシュ
+                            st.experimental_rerun()
+                        else:
+                            st.error("問題の形式が正しくありません。もう一度生成してください。")
+                except Exception as e:
+                    st.error(f"問題の解析中にエラーが発生しました: {str(e)}")
+
+        # 次の問題へのガイダンス（回答済みの場合のみ表示）
+        if hasattr(st.session_state, 'has_answered') and st.session_state.has_answered:
+            st.info("「新しい問題を生成」ボタンをクリックして次の問題に進んでください。")
+
     except Exception as e:
         st.error(f"予期せぬエラーが発生しました: {str(e)}")
         st.info("アプリケーションを再読み込みしてください。")
