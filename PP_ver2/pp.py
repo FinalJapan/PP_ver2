@@ -140,6 +140,10 @@ if 'correct_answer' not in st.session_state:
     st.session_state.correct_answer = None
 if 'has_answered' not in st.session_state:
     st.session_state.has_answered = False
+if 'last_quiz_content' not in st.session_state:
+    st.session_state.last_quiz_content = None
+if 'last_quiz_genre' not in st.session_state:
+    st.session_state.last_quiz_genre = None
 
 # 環境変数の読み込み
 env_path = Path(__file__).parent / '.env'
@@ -205,20 +209,61 @@ except Exception as e:
     st.stop()
 
 @retry.Retry(predicate=retry.if_exception_type(Exception))
-def generate_quiz_with_retry():
+def generate_quiz_with_retry(quiz_type="multiple_choice"):
     try:
         selected_genre = select_genre()
-        prompt = f"""
-        日本の歴史の「{selected_genre}」に関する4択問題を1つ生成してください。
-        以下の形式で出力してください：
-        質問：
-        選択肢1：
-        選択肢2：
-        選択肢3：
-        選択肢4：
-        正解：（数字のみ）
-        ジャンル：{selected_genre}
-        """
+        
+        if quiz_type == "multiple_choice":
+            prompt = f"""
+            日本の歴史の「{selected_genre}」に関する4択問題を1つ生成してください。
+            以下の形式で出力してください：
+            質問：
+            選択肢1：
+            選択肢2：
+            選択肢3：
+            選択肢4：
+            正解：（数字のみ）
+            ジャンル：{selected_genre}
+            """
+        else:  # written_answer
+            # 前回の4択問題の内容を取得
+            last_quiz = st.session_state.last_quiz_content
+            last_genre = st.session_state.last_quiz_genre
+            
+            if last_quiz and last_genre:
+                prompt = f"""
+                以下の4択問題の内容を発展させた、より詳細な記述式問題を生成してください。
+
+                前回の問題：
+                {last_quiz}
+
+                以下の条件を満たす発展的な問題を生成してください：
+                1. 前回の問題の内容に関連し、より深い理解を問う問題
+                2. 歴史的背景や因果関係、影響などを説明させる問題
+                3. 単なる暗記ではなく、考察力を問う内容
+                4. 正解には詳細な説明と具体例を含める
+
+                以下の形式で出力してください：
+                質問：
+                正解：（詳細な説明）
+                ジャンル：{last_genre}
+                """
+            else:
+                # 前回の問題がない場合は新しいトピックで生成
+                prompt = f"""
+                日本の歴史の「{selected_genre}」に関する記述式の問題を1つ生成してください。
+                
+                以下の条件を満たす問題を生成してください：
+                1. 質問は具体的で明確であること
+                2. 正解は詳細な説明を含むこと（単なる単語や数字ではなく）
+                3. 歴史的な文脈や意義が理解できる内容であること
+                4. 考察力を問う内容であること
+                
+                以下の形式で出力してください：
+                質問：
+                正解：（詳細な説明）
+                ジャンル：{selected_genre}
+                """
         
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(
@@ -238,6 +283,11 @@ def generate_quiz_with_retry():
         if st.session_state.get('debug_mode', False):
             st.write("生成された内容:", response.text)
         
+        # 4択問題の場合、内容を保存
+        if quiz_type == "multiple_choice":
+            st.session_state.last_quiz_content = response.text
+            st.session_state.last_quiz_genre = selected_genre
+        
         return response.text, selected_genre
     except Exception as e:
         st.error(f"問題生成中にエラーが発生しました: {str(e)}")
@@ -254,10 +304,10 @@ def quiz_mode():
                     st.sidebar.text(f"{genre}: {accuracy}% ({correct}/{total})")
 
         # 新しい問題生成ボタン
-        if st.button("新しい問題を生成"):
+        if st.button("新しい問題を生成", key="quiz_generate"):
             # 新しい問題を生成する際に回答フラグをリセット
             st.session_state.has_answered = False
-            quiz_text, genre = generate_quiz_with_retry()
+            quiz_text, genre = generate_quiz_with_retry(quiz_type="multiple_choice")
             if quiz_text:
                 try:
                     lines = [line.strip() for line in quiz_text.split('\n') if line.strip()]
@@ -373,11 +423,16 @@ def written_quiz_mode():
                 if total > 0:
                     st.sidebar.text(f"{genre}: {accuracy}% ({correct}/{total})")
 
-        if st.button("新しい問題を生成"):
+        # 前回の4択問題の情報を表示
+        if st.session_state.last_quiz_content:
+            with st.expander("前回の4択問題"):
+                st.write(st.session_state.last_quiz_content)
+
+        if st.button("新しい問題を生成", key="written_generate"):
             # 新しい問題を生成する際に回答フラグをリセット
             st.session_state.has_answered = False
             with st.spinner('記述式問題を生成中...'):
-                quiz_text, genre = generate_quiz_with_retry()
+                quiz_text, genre = generate_quiz_with_retry(quiz_type="written_answer")
                 if quiz_text:
                     try:
                         lines = [line.strip() for line in quiz_text.split('\n') if line.strip()]
@@ -387,7 +442,7 @@ def written_quiz_mode():
                         
                         if question and answer:
                             st.session_state.current_question = question
-                            st.session_state.correct_answer = str(answer)  # 確実に文字列に変換
+                            st.session_state.correct_answer = str(answer)
                             st.session_state.current_genre = genre
                         else:
                             st.error("問題の形式が正しくありません。もう一度生成してください。")
