@@ -543,8 +543,6 @@ def written_quiz_mode():
                         else:
                             st.error("不正解です。")
                             # エラー時でも正解は表示
-                            st.write("📝 正しい回答例:")
-                            st.info(st.session_state.correct_answer)
                     finally:
                         if 'conn' in locals():
                             conn.close()
