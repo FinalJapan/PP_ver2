@@ -13,7 +13,6 @@ import random
 st.set_page_config(
     page_title="PP - AIパーソナル学習",
     page_icon="📚",
-    layout="wide"
 )
 
 # データベースファイルのパスを設定
