@@ -22,16 +22,19 @@ def get_db_path():
         return Path.home() / '.streamlit' / 'learning_log.db'
     else:
         # ローカル環境での保存先
-        return Path(__file__).parent / 'learning_log.db'
+        return Path(__file__).parent.absolute() / 'learning_log.db'
 
 # データベースの初期化関数
 def init_db():
-    db_path = get_db_path()
-    # データベースディレクトリの作成
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    conn = None
     try:
+        db_path = get_db_path()
+        # データベースディレクトリの作成
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # データベースファイルが存在する場合は削除
+        if db_path.exists():
+            db_path.unlink()
+        
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
         
@@ -71,22 +74,27 @@ def init_db():
             "平成・令和時代"
         ]
         
-        # 各ジャンルが存在しない場合のみ挿入
+        # 各ジャンルを挿入
         for genre in genres:
             c.execute('''
-                INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                INSERT INTO genre_stats (genre, total_questions, correct_answers)
                 VALUES (?, 0, 0)
             ''', (genre,))
         
         conn.commit()
+        st.success("データベースの初期化が完了しました。")
         return True
         
     except sqlite3.Error as e:
         st.error(f"データベースの初期化中にエラーが発生しました: {str(e)}")
-        return False
-    finally:
-        if conn:
+        if 'conn' in locals():
             conn.close()
+        return False
+    except Exception as e:
+        st.error(f"予期せぬエラーが発生しました: {str(e)}")
+        if 'conn' in locals():
+            conn.close()
+        return False
 
 # ジャンルの正答率を取得
 def get_genre_stats():
