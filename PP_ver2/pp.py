@@ -30,6 +30,7 @@ def init_db():
     # データベースディレクトリの作成
     db_path.parent.mkdir(parents=True, exist_ok=True)
     
+    conn = None
     try:
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
@@ -70,6 +71,7 @@ def init_db():
             "平成・令和時代"
         ]
         
+        # 各ジャンルが存在しない場合のみ挿入
         for genre in genres:
             c.execute('''
                 INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
@@ -77,14 +79,14 @@ def init_db():
             ''', (genre,))
         
         conn.commit()
+        return True
         
     except sqlite3.Error as e:
         st.error(f"データベースの初期化中にエラーが発生しました: {str(e)}")
         return False
     finally:
-        if 'conn' in locals():
+        if conn:
             conn.close()
-    return True
 
 # ジャンルの正答率を取得
 def get_genre_stats():
@@ -201,7 +203,9 @@ if not GOOGLE_API_KEY and not st.session_state.api_key_set:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # データベースの初期化
-init_db()
+if not init_db():
+    st.error("データベースの初期化に失敗しました。アプリケーションを再起動してください。")
+    st.stop()
 
 # メインページのタイトル
 st.title("PP - AIパーソナル学習")
