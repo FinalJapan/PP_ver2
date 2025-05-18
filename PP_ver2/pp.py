@@ -549,13 +549,52 @@ def delete_all_learning_logs():
         
         # 学習ログの削除
         c.execute("DELETE FROM learning_log")
-        # ジャンル統計のリセット
+        
+        # genre_statsテーブルが存在するか確認
+        c.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='genre_stats'
+        """)
+        
+        if c.fetchone() is None:
+            # テーブルが存在しない場合は作成
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS genre_stats
+                (genre TEXT PRIMARY KEY,
+                 total_questions INTEGER DEFAULT 0,
+                 correct_answers INTEGER DEFAULT 0,
+                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
+            ''')
+            
+            # 初期ジャンルの登録
+            genres = [
+                "古代（縄文・弥生・古墳時代）",
+                "飛鳥・奈良時代",
+                "平安時代",
+                "鎌倉時代",
+                "室町時代",
+                "安土桃山時代",
+                "江戸時代",
+                "明治時代",
+                "大正時代",
+                "昭和時代",
+                "平成・令和時代"
+            ]
+            
+            for genre in genres:
+                c.execute('''
+                    INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                    VALUES (?, 0, 0)
+                ''', (genre,))
+        
+        # 統計のリセット
         c.execute("""
             UPDATE genre_stats 
             SET total_questions = 0,
                 correct_answers = 0,
                 last_updated = CURRENT_TIMESTAMP
         """)
+        
         conn.commit()
         return True
     except sqlite3.Error as e:
