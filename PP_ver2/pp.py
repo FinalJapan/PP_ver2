@@ -17,49 +17,46 @@ st.set_page_config(
 
 # データベースファイルのパスを設定
 def get_db_path():
-    if 'STREAMLIT_SHARING_MODE' in os.environ:
-        # Streamlit Cloud環境での保存先
-        return Path.home() / '.streamlit' / 'learning_log.db'
-    else:
-        # ローカル環境での保存先
-        return Path(__file__).parent.absolute() / 'learning_log.db'
+    return Path(__file__).parent.absolute() / 'learning_log.db'
 
 # データベースの初期化関数
 def init_db():
     try:
         db_path = get_db_path()
-        # データベースディレクトリの作成
-        db_path.parent.mkdir(parents=True, exist_ok=True)
         
         # データベースファイルが存在する場合は削除
         if db_path.exists():
-            db_path.unlink()
+            try:
+                db_path.unlink()
+            except Exception as e:
+                st.error(f"既存のデータベースファイルの削除に失敗しました: {str(e)}")
+                return False
         
+        # 新しい接続を作成
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
         
-        # 学習ログテーブルの作成
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS learning_log
+        # テーブルを作成
+        c.executescript('''
+            -- 学習ログテーブル
+            CREATE TABLE learning_log
             (id INTEGER PRIMARY KEY AUTOINCREMENT,
              timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
              question TEXT,
              user_answer TEXT,
              correct_answer TEXT,
              is_correct BOOLEAN,
-             genre TEXT)
-        ''')
-        
-        # ジャンルごとの統計テーブル
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS genre_stats
+             genre TEXT);
+            
+            -- ジャンル統計テーブル
+            CREATE TABLE genre_stats
             (genre TEXT PRIMARY KEY,
              total_questions INTEGER DEFAULT 0,
              correct_answers INTEGER DEFAULT 0,
-             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
+             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP);
         ''')
         
-        # 初期ジャンルの登録
+        # 初期ジャンルを挿入
         genres = [
             "古代（縄文・弥生・古墳時代）",
             "飛鳥・奈良時代",
@@ -74,26 +71,35 @@ def init_db():
             "平成・令和時代"
         ]
         
-        # 各ジャンルを挿入
-        for genre in genres:
-            c.execute('''
-                INSERT INTO genre_stats (genre, total_questions, correct_answers)
-                VALUES (?, 0, 0)
-            ''', (genre,))
+        # ジャンルを一括挿入
+        c.executemany(
+            "INSERT INTO genre_stats (genre, total_questions, correct_answers) VALUES (?, 0, 0)",
+            [(genre,) for genre in genres]
+        )
         
+        # 変更を確定
         conn.commit()
-        st.success("データベースの初期化が完了しました。")
-        return True
+        conn.close()
         
+        # 接続テスト
+        test_conn = sqlite3.connect(str(db_path))
+        test_c = test_conn.cursor()
+        test_c.execute("SELECT COUNT(*) FROM genre_stats")
+        count = test_c.fetchone()[0]
+        test_conn.close()
+        
+        if count == len(genres):
+            st.success("データベースの初期化が完了しました。")
+            return True
+        else:
+            st.error("データベースの初期化に失敗しました：ジャンルの数が一致しません。")
+            return False
+            
     except sqlite3.Error as e:
-        st.error(f"データベースの初期化中にエラーが発生しました: {str(e)}")
-        if 'conn' in locals():
-            conn.close()
+        st.error(f"SQLiteエラー: {str(e)}")
         return False
     except Exception as e:
-        st.error(f"予期せぬエラーが発生しました: {str(e)}")
-        if 'conn' in locals():
-            conn.close()
+        st.error(f"予期せぬエラー: {str(e)}")
         return False
 
 # ジャンルの正答率を取得
