@@ -87,17 +87,19 @@ def init_db():
     return True
 
 # ジャンルの正答率を取得
+# ジャンルの正答率を取得
 def get_genre_stats():
-    conn = sqlite3.connect('learning_log.db')
+    db_path = get_db_path() # get_db_path() を使用するように変更
+    conn = sqlite3.connect(str(db_path))
     c = conn.cursor()
     c.execute('''
-        SELECT genre, 
-               total_questions, 
+        SELECT genre,
+               total_questions,
                correct_answers,
-               CASE 
-                   WHEN total_questions > 0 
+               CASE
+                   WHEN total_questions > 0
                    THEN ROUND(CAST(correct_answers AS FLOAT) / total_questions * 100, 2)
-                   ELSE 0 
+                   ELSE 0
                END as accuracy
         FROM genre_stats
         ORDER BY accuracy ASC
