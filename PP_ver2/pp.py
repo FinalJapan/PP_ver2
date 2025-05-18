@@ -19,57 +19,48 @@ st.set_page_config(
 def get_db_path():
     if 'STREAMLIT_SHARING_MODE' in os.environ:
         # Streamlit Cloud環境での保存先
-        return Path('/mount/src/pp_ver2/learning_log.db')
+        db_dir = Path.home() / '.streamlit'
+        db_dir.mkdir(parents=True, exist_ok=True)
+        return db_dir / 'learning_log.db'
     else:
         # ローカル環境での保存先
         return Path(__file__).parent / 'learning_log.db'
 
 # データベースの初期化関数
 def init_db():
-    db_path = get_db_path()
-    # データベースディレクトリの作成
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    
     try:
+        db_path = get_db_path()
+        # データベースディレクトリの作成
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # データベース接続を確立
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
         
-        # テーブルの存在確認
-        c.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='learning_log'
-        """)
+        # 必要なテーブルを作成
+        c.executescript('''
+            CREATE TABLE IF NOT EXISTS learning_log
+            (id INTEGER PRIMARY KEY AUTOINCREMENT,
+             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+             question TEXT,
+             user_answer TEXT,
+             correct_answer TEXT,
+             is_correct BOOLEAN,
+             genre TEXT);
+
+            CREATE TABLE IF NOT EXISTS genre_stats
+            (genre TEXT PRIMARY KEY,
+             total_questions INTEGER DEFAULT 0,
+             correct_answers INTEGER DEFAULT 0,
+             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP);
+        ''')
         
-        if c.fetchone() is None:
-            # 学習ログテーブルの作成
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS learning_log
-                (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                 question TEXT,
-                 user_answer TEXT,
-                 correct_answer TEXT,
-                 is_correct BOOLEAN,
-                 genre TEXT)
-            ''')
+        # genre_statsテーブルが空かどうかを確認
+        c.execute("SELECT COUNT(*) FROM genre_stats")
+        count = c.fetchone()[0]
         
-        # genre_statsテーブルの存在確認
-        c.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='genre_stats'
-        """)
-        
-        if c.fetchone() is None:
-            # ジャンルごとの統計テーブル
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS genre_stats
-                (genre TEXT PRIMARY KEY,
-                 total_questions INTEGER DEFAULT 0,
-                 correct_answers INTEGER DEFAULT 0,
-                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
-            ''')
-            
-            # 初期ジャンルの登録
+        # テーブルが空の場合のみ初期データを挿入
+        if count == 0:
             genres = [
                 "古代（縄文・弥生・古墳時代）",
                 "飛鳥・奈良時代",
@@ -84,21 +75,28 @@ def init_db():
                 "平成・令和時代"
             ]
             
-            for genre in genres:
-                c.execute('''
-                    INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
-                    VALUES (?, 0, 0)
-                ''', (genre,))
-            
-            conn.commit()
+            c.executemany('''
+                INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                VALUES (?, 0, 0)
+            ''', [(genre,) for genre in genres])
+        
+        conn.commit()
+        return True
         
     except sqlite3.Error as e:
         st.error(f"データベースの初期化中にエラーが発生しました: {str(e)}")
         return False
+    except Exception as e:
+        st.error(f"予期せぬエラーが発生しました: {str(e)}")
+        return False
     finally:
         if 'conn' in locals():
             conn.close()
-    return True
+
+# アプリケーション起動時にデータベースを初期化
+if not init_db():
+    st.error("データベースの初期化に失敗しました。アプリケーションを再起動してください。")
+    st.stop()
 
 # ジャンルの正答率を取得
 def get_genre_stats():
@@ -213,9 +211,6 @@ if not GOOGLE_API_KEY and not st.session_state.api_key_set:
 
 # Gemini APIの設定
 genai.configure(api_key=GOOGLE_API_KEY)
-
-# データベースの初期化
-init_db()
 
 # メインページのタイトル
 st.title("PP - AIパーソナル学習")
