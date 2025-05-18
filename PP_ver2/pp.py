@@ -17,46 +17,45 @@ st.set_page_config(
 
 # データベースファイルのパスを設定
 def get_db_path():
-    return Path(__file__).parent.absolute() / 'learning_log.db'
+    if 'STREAMLIT_SHARING_MODE' in os.environ:
+        # Streamlit Cloud環境での保存先
+        return Path.home() / '.streamlit' / 'learning_log.db'
+    else:
+        # ローカル環境での保存先
+        return Path(__file__).parent / 'learning_log.db'
 
 # データベースの初期化関数
 def init_db():
+    db_path = get_db_path()
+    # データベースディレクトリの作成
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
     try:
-        db_path = get_db_path()
-        
-        # データベースファイルが存在する場合は削除
-        if db_path.exists():
-            try:
-                db_path.unlink()
-            except Exception as e:
-                st.error(f"既存のデータベースファイルの削除に失敗しました: {str(e)}")
-                return False
-        
-        # 新しい接続を作成
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
         
-        # テーブルを作成
-        c.executescript('''
-            -- 学習ログテーブル
-            CREATE TABLE learning_log
+        # 学習ログテーブルの作成
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS learning_log
             (id INTEGER PRIMARY KEY AUTOINCREMENT,
              timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
              question TEXT,
              user_answer TEXT,
              correct_answer TEXT,
              is_correct BOOLEAN,
-             genre TEXT);
-            
-            -- ジャンル統計テーブル
-            CREATE TABLE genre_stats
+             genre TEXT)
+        ''')
+        
+        # ジャンルごとの統計テーブル
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS genre_stats
             (genre TEXT PRIMARY KEY,
              total_questions INTEGER DEFAULT 0,
              correct_answers INTEGER DEFAULT 0,
-             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP);
+             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
         ''')
         
-        # 初期ジャンルを挿入
+        # 初期ジャンルの登録
         genres = [
             "古代（縄文・弥生・古墳時代）",
             "飛鳥・奈良時代",
@@ -71,36 +70,21 @@ def init_db():
             "平成・令和時代"
         ]
         
-        # ジャンルを一括挿入
-        c.executemany(
-            "INSERT INTO genre_stats (genre, total_questions, correct_answers) VALUES (?, 0, 0)",
-            [(genre,) for genre in genres]
-        )
+        for genre in genres:
+            c.execute('''
+                INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                VALUES (?, 0, 0)
+            ''', (genre,))
         
-        # 変更を確定
         conn.commit()
-        conn.close()
         
-        # 接続テスト
-        test_conn = sqlite3.connect(str(db_path))
-        test_c = test_conn.cursor()
-        test_c.execute("SELECT COUNT(*) FROM genre_stats")
-        count = test_c.fetchone()[0]
-        test_conn.close()
-        
-        if count == len(genres):
-            st.success("データベースの初期化が完了しました。")
-            return True
-        else:
-            st.error("データベースの初期化に失敗しました：ジャンルの数が一致しません。")
-            return False
-            
     except sqlite3.Error as e:
-        st.error(f"SQLiteエラー: {str(e)}")
+        st.error(f"データベースの初期化中にエラーが発生しました: {str(e)}")
         return False
-    except Exception as e:
-        st.error(f"予期せぬエラー: {str(e)}")
-        return False
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    return True
 
 # ジャンルの正答率を取得
 def get_genre_stats():
@@ -217,9 +201,7 @@ if not GOOGLE_API_KEY and not st.session_state.api_key_set:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # データベースの初期化
-if not init_db():
-    st.error("データベースの初期化に失敗しました。アプリケーションを再起動してください。")
-    st.stop()
+init_db()
 
 # メインページのタイトル
 st.title("PP - AIパーソナル学習")
@@ -559,47 +541,6 @@ def written_quiz_mode():
         st.error(f"予期せぬエラーが発生しました: {str(e)}")
         st.info("アプリケーションを再読み込みしてください。")
 
-def delete_all_learning_logs():
-    try:
-        db_path = get_db_path()
-        conn = sqlite3.connect(str(db_path))
-        c = conn.cursor()
-        
-        # 学習ログの削除
-        c.execute("DELETE FROM learning_log")
-        # ジャンル統計のリセット
-        c.execute("""
-            UPDATE genre_stats 
-            SET total_questions = 0,
-                correct_answers = 0,
-                last_updated = CURRENT_TIMESTAMP
-        """)
-        conn.commit()
-        return True
-    except sqlite3.Error as e:
-        st.error(f"学習履歴の削除中にエラーが発生しました: {str(e)}")
-        return False
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
-def delete_specific_log(log_id):
-    try:
-        db_path = get_db_path()
-        conn = sqlite3.connect(str(db_path))
-        c = conn.cursor()
-        
-        # 特定の学習ログを削除
-        c.execute("DELETE FROM learning_log WHERE id = ?", (log_id,))
-        conn.commit()
-        return True
-    except sqlite3.Error as e:
-        st.error(f"学習履歴の削除中にエラーが発生しました: {str(e)}")
-        return False
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
 def show_learning_log():
     st.subheader("学習履歴")
     
@@ -611,17 +552,8 @@ def show_learning_log():
             
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
-        
-        # 削除ボタンを追加
-        if st.button("すべての学習履歴を削除"):
-            if delete_all_learning_logs():
-                st.success("すべての学習履歴を削除しました。")
-                st.rerun()
-            else:
-                st.error("学習履歴の削除に失敗しました。")
-        
         logs = c.execute("""
-            SELECT id, timestamp, question, user_answer, correct_answer, is_correct, genre
+            SELECT timestamp, question, user_answer, correct_answer, is_correct, genre
             FROM learning_log 
             ORDER BY timestamp DESC
         """).fetchall()
@@ -631,21 +563,13 @@ def show_learning_log():
             return
             
         for log in logs:
-            with st.expander(f"{log[6]} - {log[2][:50]}..."):
-                st.write(f"回答日時: {log[1]}")
-                st.write(f"ジャンル: {log[6]}")
-                st.write(f"問題: {log[2]}")
-                st.write(f"あなたの回答: {log[3]}")
-                st.write(f"正解: {log[4]}")
-                st.write("結果: " + ("正解" if log[5] else "不正解"))
-                
-                # 個別の削除ボタンを追加
-                if st.button(f"この記録を削除", key=f"delete_{log[0]}"):
-                    if delete_specific_log(log[0]):
-                        st.success("記録を削除しました。")
-                        st.rerun()
-                    else:
-                        st.error("記録の削除に失敗しました。")
+            with st.expander(f"{log[5]} - {log[1][:50]}..."):
+                st.write(f"回答日時: {log[0]}")
+                st.write(f"ジャンル: {log[5]}")
+                st.write(f"問題: {log[1]}")
+                st.write(f"あなたの回答: {log[2]}")
+                st.write(f"正解: {log[3]}")
+                st.write("結果: " + ("正解" if log[4] else "不正解"))
                 
     except sqlite3.Error as e:
         st.error(f"学習履歴の取得中にエラーが発生しました: {str(e)}")
