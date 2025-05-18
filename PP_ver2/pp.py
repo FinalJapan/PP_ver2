@@ -55,26 +55,32 @@ def init_db():
              last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
         ''')
         
-        # 初期ジャンルの登録
-        genres = [
-            "古代（縄文・弥生・古墳時代）",
-            "飛鳥・奈良時代",
-            "平安時代",
-            "鎌倉時代",
-            "室町時代",
-            "安土桃山時代",
-            "江戸時代",
-            "明治時代",
-            "大正時代",
-            "昭和時代",
-            "平成・令和時代"
-        ]
+        # 既存のジャンル統計テーブルのデータを確認
+        c.execute("SELECT COUNT(*) FROM genre_stats")
+        count = c.fetchone()[0]
         
-        for genre in genres:
-            c.execute('''
-                INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
-                VALUES (?, 0, 0)
-            ''', (genre,))
+        # データが存在しない場合のみ初期ジャンルを登録
+        if count == 0:
+            # 初期ジャンルの登録
+            genres = [
+                "古代（縄文・弥生・古墳時代）",
+                "飛鳥・奈良時代",
+                "平安時代",
+                "鎌倉時代",
+                "室町時代",
+                "安土桃山時代",
+                "江戸時代",
+                "明治時代",
+                "大正時代",
+                "昭和時代",
+                "平成・令和時代"
+            ]
+            
+            for genre in genres:
+                c.execute('''
+                    INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                    VALUES (?, 0, 0)
+                ''', (genre,))
         
         conn.commit()
         
