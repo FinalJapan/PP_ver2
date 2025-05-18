@@ -19,7 +19,7 @@ st.set_page_config(
 def get_db_path():
     if 'STREAMLIT_SHARING_MODE' in os.environ:
         # Streamlit Cloud環境での保存先
-        return Path.home() / '.streamlit' / 'learning_log.db'
+        return Path('/mount/src/pp_ver2/learning_log.db')
     else:
         # ローカル環境での保存先
         return Path(__file__).parent / 'learning_log.db'
@@ -34,49 +34,63 @@ def init_db():
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
         
-        # 学習ログテーブルの作成
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS learning_log
-            (id INTEGER PRIMARY KEY AUTOINCREMENT,
-             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-             question TEXT,
-             user_answer TEXT,
-             correct_answer TEXT,
-             is_correct BOOLEAN,
-             genre TEXT)
-        ''')
+        # テーブルの存在確認
+        c.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='learning_log'
+        """)
         
-        # ジャンルごとの統計テーブル
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS genre_stats
-            (genre TEXT PRIMARY KEY,
-             total_questions INTEGER DEFAULT 0,
-             correct_answers INTEGER DEFAULT 0,
-             last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
-        ''')
-        
-        # 初期ジャンルの登録
-        genres = [
-            "古代（縄文・弥生・古墳時代）",
-            "飛鳥・奈良時代",
-            "平安時代",
-            "鎌倉時代",
-            "室町時代",
-            "安土桃山時代",
-            "江戸時代",
-            "明治時代",
-            "大正時代",
-            "昭和時代",
-            "平成・令和時代"
-        ]
-        
-        for genre in genres:
+        if c.fetchone() is None:
+            # 学習ログテーブルの作成
             c.execute('''
-                INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
-                VALUES (?, 0, 0)
-            ''', (genre,))
+                CREATE TABLE IF NOT EXISTS learning_log
+                (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                 question TEXT,
+                 user_answer TEXT,
+                 correct_answer TEXT,
+                 is_correct BOOLEAN,
+                 genre TEXT)
+            ''')
         
-        conn.commit()
+        # genre_statsテーブルの存在確認
+        c.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='genre_stats'
+        """)
+        
+        if c.fetchone() is None:
+            # ジャンルごとの統計テーブル
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS genre_stats
+                (genre TEXT PRIMARY KEY,
+                 total_questions INTEGER DEFAULT 0,
+                 correct_answers INTEGER DEFAULT 0,
+                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
+            ''')
+            
+            # 初期ジャンルの登録
+            genres = [
+                "古代（縄文・弥生・古墳時代）",
+                "飛鳥・奈良時代",
+                "平安時代",
+                "鎌倉時代",
+                "室町時代",
+                "安土桃山時代",
+                "江戸時代",
+                "明治時代",
+                "大正時代",
+                "昭和時代",
+                "平成・令和時代"
+            ]
+            
+            for genre in genres:
+                c.execute('''
+                    INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                    VALUES (?, 0, 0)
+                ''', (genre,))
+            
+            conn.commit()
         
     except sqlite3.Error as e:
         st.error(f"データベースの初期化中にエラーが発生しました: {str(e)}")
