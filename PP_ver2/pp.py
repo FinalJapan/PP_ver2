@@ -55,32 +55,26 @@ def init_db():
              last_updated DATETIME DEFAULT CURRENT_TIMESTAMP)
         ''')
         
-        # 既存のジャンル統計テーブルのデータを確認
-        c.execute("SELECT COUNT(*) FROM genre_stats")
-        count = c.fetchone()[0]
+        # 初期ジャンルの登録
+        genres = [
+            "古代（縄文・弥生・古墳時代）",
+            "飛鳥・奈良時代",
+            "平安時代",
+            "鎌倉時代",
+            "室町時代",
+            "安土桃山時代",
+            "江戸時代",
+            "明治時代",
+            "大正時代",
+            "昭和時代",
+            "平成・令和時代"
+        ]
         
-        # データが存在しない場合のみ初期ジャンルを登録
-        if count == 0:
-            # 初期ジャンルの登録
-            genres = [
-                "古代（縄文・弥生・古墳時代）",
-                "飛鳥・奈良時代",
-                "平安時代",
-                "鎌倉時代",
-                "室町時代",
-                "安土桃山時代",
-                "江戸時代",
-                "明治時代",
-                "大正時代",
-                "昭和時代",
-                "平成・令和時代"
-            ]
-            
-            for genre in genres:
-                c.execute('''
-                    INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
-                    VALUES (?, 0, 0)
-                ''', (genre,))
+        for genre in genres:
+            c.execute('''
+                INSERT OR IGNORE INTO genre_stats (genre, total_questions, correct_answers)
+                VALUES (?, 0, 0)
+            ''', (genre,))
         
         conn.commit()
         
@@ -207,13 +201,7 @@ if not GOOGLE_API_KEY and not st.session_state.api_key_set:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # データベースの初期化
-if 'db_initialized' not in st.session_state:
-    success = init_db()
-    if success:
-        st.session_state.db_initialized = True
-    else:
-        st.error("データベースの初期化に失敗しました。")
-        st.stop()
+init_db()
 
 # メインページのタイトル
 st.title("PP - AIパーソナル学習")
@@ -559,14 +547,6 @@ def delete_all_learning_logs():
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
         
-        # テーブルの存在確認
-        c.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='genre_stats'
-        """)
-        if not c.fetchone():
-            init_db()  # テーブルが存在しない場合は初期化
-        
         # 学習ログの削除
         c.execute("DELETE FROM learning_log")
         # ジャンル統計のリセット
@@ -613,14 +593,6 @@ def show_learning_log():
             
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
-        
-        # テーブルの存在確認
-        c.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='genre_stats'
-        """)
-        if not c.fetchone():
-            init_db()  # テーブルが存在しない場合は初期化
         
         # 削除ボタンを追加
         if st.button("すべての学習履歴を削除"):
