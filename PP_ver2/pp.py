@@ -541,47 +541,6 @@ def written_quiz_mode():
         st.error(f"予期せぬエラーが発生しました: {str(e)}")
         st.info("アプリケーションを再読み込みしてください。")
 
-def delete_all_learning_logs():
-    try:
-        db_path = get_db_path()
-        conn = sqlite3.connect(str(db_path))
-        c = conn.cursor()
-        
-        # 学習ログの削除
-        c.execute("DELETE FROM learning_log")
-        # ジャンル統計のリセット
-        c.execute("""
-            UPDATE genre_stats 
-            SET total_questions = 0,
-                correct_answers = 0,
-                last_updated = CURRENT_TIMESTAMP
-        """)
-        conn.commit()
-        return True
-    except sqlite3.Error as e:
-        st.error(f"学習履歴の削除中にエラーが発生しました: {str(e)}")
-        return False
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
-def delete_specific_log(log_id):
-    try:
-        db_path = get_db_path()
-        conn = sqlite3.connect(str(db_path))
-        c = conn.cursor()
-        
-        # 特定の学習ログを削除
-        c.execute("DELETE FROM learning_log WHERE id = ?", (log_id,))
-        conn.commit()
-        return True
-    except sqlite3.Error as e:
-        st.error(f"学習履歴の削除中にエラーが発生しました: {str(e)}")
-        return False
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
 def show_learning_log():
     st.subheader("学習履歴")
     
@@ -593,17 +552,8 @@ def show_learning_log():
             
         conn = sqlite3.connect(str(db_path))
         c = conn.cursor()
-        
-        # 削除ボタンを追加
-        if st.button("すべての学習履歴を削除"):
-            if delete_all_learning_logs():
-                st.success("すべての学習履歴を削除しました。")
-                st.rerun()
-            else:
-                st.error("学習履歴の削除に失敗しました。")
-        
         logs = c.execute("""
-            SELECT id, timestamp, question, user_answer, correct_answer, is_correct, genre
+            SELECT timestamp, question, user_answer, correct_answer, is_correct, genre
             FROM learning_log 
             ORDER BY timestamp DESC
         """).fetchall()
@@ -613,21 +563,13 @@ def show_learning_log():
             return
             
         for log in logs:
-            with st.expander(f"{log[6]} - {log[2][:50]}..."):
-                st.write(f"回答日時: {log[1]}")
-                st.write(f"ジャンル: {log[6]}")
-                st.write(f"問題: {log[2]}")
-                st.write(f"あなたの回答: {log[3]}")
-                st.write(f"正解: {log[4]}")
-                st.write("結果: " + ("正解" if log[5] else "不正解"))
-                
-                # 個別の削除ボタンを追加
-                if st.button(f"この記録を削除", key=f"delete_{log[0]}"):
-                    if delete_specific_log(log[0]):
-                        st.success("記録を削除しました。")
-                        st.rerun()
-                    else:
-                        st.error("記録の削除に失敗しました。")
+            with st.expander(f"{log[5]} - {log[1][:50]}..."):
+                st.write(f"回答日時: {log[0]}")
+                st.write(f"ジャンル: {log[5]}")
+                st.write(f"問題: {log[1]}")
+                st.write(f"あなたの回答: {log[2]}")
+                st.write(f"正解: {log[3]}")
+                st.write("結果: " + ("正解" if log[4] else "不正解"))
                 
     except sqlite3.Error as e:
         st.error(f"学習履歴の取得中にエラーが発生しました: {str(e)}")
